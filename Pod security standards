@@ -1,0 +1,27 @@
+1. Enforcing Pod Security Standards (PSS)
+
+Kubernetes features a built-in Pod Security Admission controller. 
+You apply security profiles—privileged, baseline, or restricted—directly to namespaces using native metadata labels
+
+| Security Level | Meaning                              | Security 
+| `privileged`   |  Almost everything is allowed        | 🔴 Lowest 
+| `baseline`     | Dangerous configurations are blocked | 🟡 Medium 
+| `restricted`   | Strong security rules are enforced   | 🟢 Highest 
+
+pod-security.kubernetes.io/enforce: Blocks any pod creation that violates the defined profile
+pod-security.kubernetes.io/warn: generate a user-facing warning upon creation 
+pod-security.kubernetes.io/audit: logs violation to the audit log without blocking execution
+
+
+
+
+Example usage: 
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: secure-apps
+  labels:
+    # Enforce the strict 'restricted' profile on this namespace
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: v1.31
