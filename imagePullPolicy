@@ -1,0 +1,41 @@
+There are three possible values for these: 
+1. Always
+2. IfNotPresent
+3. Never
+
+1.Always
+-----------
+
+containers:
+  - name: mongodb
+    image: mongo:6.0
+    imagePullPolicy: Always
+
+Meaning: Kubernetes  checks the container registry for the images whenever it launches  a container
+
+2.IfNotPresent
+----------------
+
+containers:
+  - name: mongodb
+    image: mongo:6.0
+    imagePullPolicy: IfNotPresent
+
+Meaning: Kubernetes downloads the image only if it is not already available on the node.
+
+3.Never
+---------------
+containers:
+  - name: mongodb
+    image: mongo:6.0
+    imagePullPolicy: Never
+
+
+Meaning: Kubernetes must use an image that is already available locally . It will not download the image from the registry 
+
+
+Policy   	    Image exists locally?	   Image missing locally?	        Checks registry?
+Always	      Checks the registry;      Attempts to pull it               Yes
+              can reuse cached layers
+IfNotPresent	Uses the local image       	Pulls the image	             Only when a pull is needed
+Never	        Uses the local image	    Fails to start the container	    No
