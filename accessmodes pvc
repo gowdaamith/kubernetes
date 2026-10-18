@@ -1,0 +1,115 @@
+In Kubernetes, accessModes defines how a PersistentVolume (PV) can be mounted by Pods running on different nodes.
+
+There are 4 access modes available in Kubernetes.
+1.ReadWriteOnce (RWO)
+2.ReadOnlyMany (ROX)
+3.ReadWriteMany (RWX)
+4.ReadWriteOncePod (RWOP)
+
+1. ReadWriteOnce (RWO)
+accessModes:
+  - ReadWriteOnce
+
+Meaning: The volume can be mounted as read-write by pods running on one node at a time
+
+
+        Kubernetes Cluster
+               |
+      ---------------------
+      |                   |
+   Node 1              Node 2
+      |                   |
+   Pod A                Pod C
+      |                   |
+      |                   |
+      v                   X
+  EBS Volume          Cannot mount
+      ^
+      |
+   Pod B
+
+Here:
+- Pod A and Pod B are running on Node 1.
+- Both may be able to mount the same volume.
+- Pod C is running on Node 2 and cannot mount that EBS volume simultaneously.
+Important: ReadWriteOnce does not mean only one Pod can access the volume. Multiple Pods on the same node may access it.
+
+
+2.ReadOnlyMany(ROX)
+accessModes:
+  - ReadOnlyMany
+
+Meaning: Multiple nodes can mount the volume simultaneously, but only for reading.
+
+           Shared Storage
+                 |
+          ---------------
+          |             |
+        Node 1        Node 2
+          |             |
+        Pod A         Pod B
+          |             |
+        READ          READ
+          |             |
+          X             X
+        WRITE         WRITE
+
+Both Pods can read data, but neither can write to the volume through these read-only mounts.
+
+3. ReadWriteMany (RWX)
+accessModes:
+  - ReadWriteMany
+
+Meaning: Multiple nodes can mount the same volume simultaneously with read and write access.
+
+             Shared Storage
+                   |
+        -----------------------
+        |          |          |
+      Node 1     Node 2     Node 3
+        |          |          |
+      Pod A      Pod B      Pod C
+        |          |          |
+     READ/WRITE READ/WRITE READ/WRITE
+
+All three Pods can read and write to the same storage.
+
+User uploads image
+        |
+        v
+      Pod A
+        |
+        v
+    Shared EFS
+        |
+        |----------------|
+        |                |
+        v                v
+      Pod B            Pod C
+        |                |
+        v                v
+   Read image       Read image
+
+4.ReadWriteOncePod (RWOP)
+
+accessModes:
+  - ReadWriteOncePod
+
+Meaning: The volume can be mounted as read-write by only one Pod in the entire Kubernetes cluster at a time.
+This is stricter than ReadWriteOnce.
+
+Meaning: The volume can be mounted as read-write by only one Pod in the entire Kubernetes cluster at a time.
+This is stricter than ReadWriteOnce.
+
+Even if Pod B runs on the same node as Pod A, it cannot simultaneously use the volume.
+Use cases
+- Single-instance databases
+- Applications that must have exclusive access to their storage
+- Workloads where concurrent volume access could corrupt data
+AWS example: Amazon EBS using a compatible CSI driver.
+ReadWriteOncePod requires CSI volumes and appropriate CSI sidecar versions.
+
+
+
+
+
