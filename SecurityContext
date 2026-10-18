@@ -1,0 +1,321 @@
+1.What is  a security Context?
+
+A Security Context in Kubernetes defines the security settings under which a Pod or container runs.
+
+it allows us to control: 
+* Which user runs a container
+* which gorup owns file and processes
+* whether a container can gain additional previleges
+* which linux capabilities are available
+* wheather the container can write to its root filesystem 
+* Which seccomp profile is applied
+* How volume can files are accessed
+
+Purpose:  Security Context helps reduce unnecessary privileges and protect applications from security threats.
+
+
+Kubernetes supports two level of security context:
+-------------------------------------------------------
+
+A.Pod level security context
+______________________________
+Pod - level settings are defined under spec.securityContext
+
+Example: 
+apiVersion: v1
+kind: Pod
+
+metadata:
+  name: secure-pod
+
+spec:
+  securityContext:
+    runAsNonRoot: true
+
+  containers:
+    - name: nginx
+      image: nginx
+
+The setting  applies to the pods containers unless a container level setting overrides it 
+
+
+Pod-level Security Context can configure settings such as:
+
+* runAsUser
+* runAsGroup
+* runAsNonRoot
+* fsGroup
+* seccompProfile
+
+B.Container Level security context
+________________________________________
+container Level security context
+
+Container-level settings are defined under spec.containers[].securityContext.
+
+Example: 
+
+apiVersion: v1
+kind: Pod
+
+metadata:
+  name: secure-pod
+
+spec:
+  containers:
+    - name: nginx
+      image: nginx
+
+      securityContext:
+        allowPrivilegeEscalation: false
+
+
+Container-level Security Context can configure settings such as:
+
+* allowPrivilegeEscalation
+* privileged
+* readOnlyRootFilesystem
+* capabilities
+* runAsUser
+* runAsNonRoot
+* seccompProfile
+
+
+Important: If a setting is specified at both levels, the container-level setting takes precedence
+where Kubernetes supports that setting at both levels. Not every Security Context field is valid 
+at both levels.
+
+
+Important Security Context Fields:
+----------------------------------
+1.runAsUser:
+______________  
+Specifies the numeric user ID under which  container processes run.
+
+securityContext:
+  runAsUser: 1000
+
+Linux commonly uses:
+
+* UID 0 for root.
+* Other UIDs for non-root users.
+
+Running an application as a non-root user reduces the privileges available to its processes.
+
+2.runAsGroup
+________________
+Specifies the primary group ID for processes running in the container
+
+securityContext:
+  runAsUser: 1000
+  runAsGroup: 2000
+
+Linux uses users and groups to control access to file and other resources
+
+Use case: Ensuring an application runs with a specific user and group.
+
+3.runAsNonRoot
+____________________
+Prevents kubernetes from starting the container if it determines that the container would run as root
+
+
+securityContext:
+  runAsNonRoot: true
+
+Meaning: 
+The container must run as a non-root user
+
+Important: The image must support running as that user. The user must also have the necessary permissions to 
+access application files and write to required directories.
+
+4. allowPrivilegeEscalation
+________________________________
+Controls whether a process can gain more privileges that its parent processse
+
+securityContext:
+  allowPrivilegeEscalation: false
+
+Meaning: 
+Prevents privilege escalation through mechanisms such as setuid executables.
+
+Why its important: 
+Suppose an attacker compromises  an application process 
+if a privilege escalation is possible  , the attacker may be able to gain additional privileges under certain circumstances
+
+Disabling privileges escalation helps reduce this risk: 
+
+
+
+5.privileged 
+__________________________________
+Controls whether a container run in  privileged mode 
+
+Example: 
+securityContext: 
+  privileged: true
+
+meaning: The container receives significantly expanded access to the host compared with an ordinary container.
+Important: Privileged mode should generally be avoided unless a specific infrastructure workload requires it.
+
+6.capabilities
+____________________________________
+
+Linux capabilities divide traditional root privileges into smaller, distinct permissions.
+Instead of giving a process broad privileges, Linux can grant specific capabilities.
+
+
+securityContext:
+  capabilities:
+    drop:
+      - ALL
+
+Meaning : Remove all the linux capabilities from the container's processes initiallhy 
+
+
+Why its usefull?
+
+A container may not need permissions to modify network settings, change system time, or perform other privileged operations.
+
+Removing unnecessary capabilities reduces the privileges available to the application.
+
+Under the Kubernetes restricted Pod Security Standard, containers must drop ALL capabilities.
+The standard permits adding back only NET_BIND_SERVICE.
+
+Example : 
+
+securityContext:
+  capabilities:
+    drop:
+      - ALL
+    add:
+      - NET_BIND_SERVICE
+
+
+Here:
+
+drop: ALL removes all capabilities.
+add: NET_BIND_SERVICE adds permission to bind to certain privileged network ports.
+Only add capabilities that your application actually needs.
+
+
+7.readOnlyRootFilesystem
+______________________________
+Controls whether the container's root filesystem is mounted read-only 
+
+example: 
+
+securityContext:
+  readOnlyRootFilesystem: true
+
+Meaning:
+The application cannot write to its container root filesystem.
+
+
+
+
+
+Why is it useful?
+
+If an attacker compromises the application, a read-only root filesystem can make it harder to modify 
+application files or create files in normally writable locations.
+
+However, the application may still need writable locations for temporary files, logs, or runtime data.
+You can provide writable volumes for those locations.
+
+apiVersion: v1
+kind: Pod
+
+metadata:
+  name: secure-pod
+
+spec:
+  containers:
+    - name: app
+      image: nginx
+
+      securityContext:
+        readOnlyRootFilesystem: true
+
+      volumeMounts:
+        - name: temporary-data
+          mountPath: /tmp
+
+  volumes:
+    - name: temporary-data
+      emptyDir: {}
+
+
+Here:
+
+* The container root filesystem is read-only.
+* /tmp is backed by a writable temporary volume.
+The application can write to /tmp while other parts of the root filesystem remain read-only.
+
+8.seccompProfile
+_______________________
+Configures a seccomp profile to restrict Linux system calls
+
+Example:
+
+securityContext:
+  seccompProfile:
+    type: RuntimeDefault
+
+Meaning: 
+Use the container runtime's default seccomp profile
+Seccomp helps reduce the system calls available to container processes
+
+Kubernetes supports three profile types : 
+
+
+Type                                         Meaning
+
+RuntimeDefault       Uses the container runtime's default profile
+
+Localhost            Uses a custom profile installed on the node
+
+Unconfined            Does not apply a seccomp filter through this setting
+
+
+
+For ordinary application containers, RuntimeDefault is a common choice.
+
+
+9.fsGroup
+_____________________
+Specifies a group ID associated with volume ownership and permission 
+
+Meaning:
+
+Kubernetes uses group ID 2000 when applying supported volume ownership and permission behavior.
+This can help a non-root application access files on a mounted volume.
+
+Real-world example
+
+Suppose MongoDB needs to write to a mounted persistent volume.
+The container runs as a non-root user, but the volume permissions do not allow that user to write.
+An appropriate filesystem group configuration may help resolve the permission issue, depending on the storage driver and filesystem.
+Important: fsGroup does not guarantee that every volume's ownership will be changed. The result depends on the volume type, driver, and ownership-management configuration.
+
+10.automountServiceAccountToken
+___________________________________
+Controls whether kubernetes automatically mounts a ServiceAccount tokekn into the pod 
+
+
+spec:
+  automountServiceAccountToken: false
+
+Meaning: 
+Kubernetes does not automatically  mount the ServiceAccount API token into the pod 
+
+Why is it useful?
+
+Applications that do not need to communicate with the Kubernetes API usually do not need this token.
+
+Disabling automatic mounting reduces unnecessary access to Kubernetes API credentials.
+
+For example, an ordinary MongoDB container generally does not need to call the Kubernetes API directly.
+
+Note: This field is a Pod specification setting, not a field inside securityContext.
+
+
