@@ -1,0 +1,45 @@
+taking the postgresql as the example: 
+
+Probe               Simple meaning            What Happens if it fails?
+
+startupProbe        Has PostgreSQL finished   After the 30 consecutive failures,
+                    starting                  kubernetes restart the container
+
+readinessProbe      Can PostgresSQL accept     Kubernetes marks the pods as not ready 
+                    connection 
+
+livenessProbe       Is the postgreSQL still    kubernetes restart the containers after 
+                    responding                 the configured failure threshold is reached
+
+
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+                    # Checks whether PostgreSQL has started successfully.
+startupProbe:
+  exec:
+    command:
+      - sh
+      - -c
+      - pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"
+  failureThreshold: 30  # Allow up to 30 consecutive failures before restarting the container.
+  periodSeconds: 5      # Run the check every 5 seconds.
+
+# Checks whether PostgreSQL is ready to accept database connections.
+readinessProbe:
+  exec:
+    command:
+      - sh
+      - -c
+      - pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"
+  periodSeconds: 10     # Run the check every 10 seconds.
+  timeoutSeconds: 5     # Wait up to 5 seconds for each check to complete.
+
+# Checks whether PostgreSQL is still healthy.
+livenessProbe:
+  exec:
+    command:
+      - sh
+      - -c
+      - pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"
+  periodSeconds: 20     # Run the check every 20 seconds.
+  timeoutSeconds: 5     # Wait up to 5 seconds for each check to complete.
