@@ -1,0 +1,11 @@
+this command is used to check the mysql image default user: 
+>> docker iamge inspect mysql:8.4 --format'{{ .Config.User }}'
+
+this command is used to inspect the image's database directory ownership
+>> docker run --rm --entrypoint sh mysql:8.4 -c 'id; ls -ld /var/lib/mysql'
+
+  check the mysql user uid and gid or the user obtainer from teh first command
+>> docker run --rm --entrypoint sh mysql:8.4 -c 'id mysql'
+
+  Then Check the data directory's numeric ownership
+  >> docker run --rm --entrypoint sh mysql:8.4 -c 'stat -c "%u:%g %a %n" /var/lib/mysql'
